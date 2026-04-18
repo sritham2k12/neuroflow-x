@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NeuroFlow X — Smart Stadium Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #070b14;
+    --surface: #0d1424;
+    --card: #111827;
+    --border: rgba(255,255,255,0.07);
+    --accent: #6ee7b7;
+    --accent2: #38bdf8;
+    --accent3: #f472b6;
+    --warn: #fbbf24;
+    --danger: #f87171;
+    --low: #34d399;
+    --med: #fbbf24;
+    --high: #f87171;
+    --text: #f1f5f9;
+    --muted: #64748b;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --radius: 18px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* LAYOUT */
+  .app { display:flex; flex-direction:column; height:100vh; max-width:480px; margin:0 auto; position:relative; }
+
+  /* HEADER */
+  .header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 16px 20px 12px;
+    background: linear-gradient(180deg, rgba(7,11,20,1) 0%, rgba(7,11,20,0) 100%);
+    position:absolute; top:0; left:0; right:0; z-index:20;
+  }
+  .logo { font-family:var(--font-head); font-weight:800; font-size:18px; letter-spacing:-0.5px; }
+  .logo span { color:var(--accent); }
+  .status-pill {
+    display:flex; align-items:center; gap:6px;
+    background:rgba(110,231,183,0.12); border:1px solid rgba(110,231,183,0.25);
+    border-radius:20px; padding:4px 12px; font-size:12px; font-weight:500;
+  }
+  .pulse { width:8px; height:8px; background:var(--accent); border-radius:50%; animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+
+  /* MAP AREA */
+  .map-container {
+    flex:1; position:relative; overflow:hidden;
+    background: radial-gradient(ellipse at center, #0f1a2e 0%, #070b14 70%);
+  }
+  .stadium-svg { width:100%; height:100%; }
+
+  /* ALERTS */
+  .alerts-container { position:absolute; top:72px; left:16px; right:16px; z-index:15; display:flex; flex-direction:column; gap:8px; }
+  .alert-pill {
+    background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.3);
+    border-radius:12px; padding:8px 14px; font-size:13px; font-weight:500;
+    backdrop-filter:blur(12px); display:flex; align-items:center; gap:8px;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+
+  /* BOTTOM PANEL */
+  .bottom-panel {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 24px 24px 0 0;
+    padding: 20px 20px 28px;
+    position:relative; z-index:10;
+    min-height: 200px;
+    max-height: 60vh;
+    overflow-y: auto;
+    transition: all 0.3s ease;
+  }
+
+  /* NAV TABS */
+  .nav-tabs { display:flex; gap:8px; margin-bottom:20px; }
+  .tab-btn {
+    flex:1; padding:10px 6px; border-radius:12px; border:none; cursor:pointer;
+    font-family:var(--font-body); font-size:12px; font-weight:500;
+    background:rgba(255,255,255,0.05); color:var(--muted);
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    transition: all 0.2s;
+  }
+  .tab-btn.active { background:rgba(110,231,183,0.15); color:var(--accent); border:1px solid rgba(110,231,183,0.3); }
+  .tab-btn .icon { font-size:18px; }
+
+  /* HOME TAB */
+  .section-title { font-family:var(--font-head); font-weight:700; font-size:15px; margin-bottom:14px; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:16px; }
+  .legend-item { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .dot { width:10px; height:10px; border-radius:50%; }
+
+  .friends-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .friend-chip {
+    display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,0.05); border:1px solid var(--border);
+    border-radius:20px; padding:6px 12px 6px 8px; font-size:13px;
+  }
+  .friend-avatar { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; }
+
+  .quick-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .action-btn {
+    background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    border:1px solid var(--border); border-radius:var(--radius);
+    padding:14px; cursor:pointer; color:var(--text);
+    display:flex; flex-direction:column; gap:6px; text-align:left;
+    transition:all 0.2s; font-family:var(--font-body);
+  }
+  .action-btn:hover { background:rgba(110,231,183,0.08); border-color:rgba(110,231,183,0.3); transform:translateY(-1px); }
+  .action-btn .ab-icon { font-size:22px; }
+  .action-btn .ab-label { font-size:13px; font-weight:600; }
+  .action-btn .ab-sub { font-size:11px; color:var(--muted); }
+
+  /* NAV TAB */
+  .form-row { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+  .select-wrap { position:relative; }
+  .select-wrap select {
+    width:100%; padding:12px 16px; border-radius:12px;
+    background:rgba(255,255,255,0.06); border:1px solid var(--border);
+    color:var(--text); font-family:var(--font-body); font-size:14px;
+    appearance:none; cursor:pointer;
+  }
+  .select-wrap::after { content:'▾'; position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--muted); pointer-events:none; }
+
+  .primary-btn {
+    width:100%; padding:14px; border-radius:14px; border:none; cursor:pointer;
+    background:linear-gradient(135deg, #6ee7b7, #38bdf8);
+    color:#070b14; font-family:var(--font-head); font-weight:700; font-size:15px;
+    transition:all 0.2s;
+  }
+  .primary-btn:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(110,231,183,0.3); }
+  .primary-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+
+  .route-result {
+    background:rgba(110,231,183,0.08); border:1px solid rgba(110,231,183,0.2);
+    border-radius:14px; padding:14px; margin-top:14px;
+  }
+  .route-path { display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
+  .route-node {
+    background:rgba(110,231,183,0.15); border-radius:6px;
+    padding:3px 8px; font-size:12px; font-weight:600; color:var(--accent);
+  }
+  .route-arrow { color:var(--muted); font-size:12px; }
+  .route-meta { display:flex; gap:16px; }
+  .route-meta-item { font-size:12px; color:var(--muted); }
+  .route-meta-item span { color:var(--text); font-weight:600; }
+
+  /* MEET TAB */
+  .meet-result {
+    background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.2);
+    border-radius:14px; padding:14px; margin-top:14px;
+  }
+  .meeting-point { font-family:var(--font-head); font-size:28px; font-weight:800; color:var(--accent2); text-align:center; margin:10px 0; }
+  .meeting-label { text-align:center; color:var(--muted); font-size:13px; margin-bottom:12px; }
+  .meet-routes { display:flex; flex-direction:column; gap:8px; }
+  .meet-route-row { display:flex; align-items:center; justify-content:space-between; font-size:13px; }
+  .meet-route-name { font-weight:600; }
+  .eta-badge { background:rgba(110,231,183,0.15); color:var(--accent); border-radius:8px; padding:2px 8px; font-size:11px; font-weight:600; }
+
+  /* FOOD TAB */
+  .food-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .food-card {
+    background:rgba(255,255,255,0.04); border:1px solid var(--border);
+    border-radius:var(--radius); padding:14px; cursor:pointer; text-align:center;
+    transition:all 0.2s; position:relative;
+  }
+  .food-card:hover { border-color:rgba(244,114,182,0.4); background:rgba(244,114,182,0.06); }
+  .food-card.selected { border-color:var(--accent3); background:rgba(244,114,182,0.1); }
+  .food-card .food-emoji { font-size:30px; margin-bottom:6px; }
+  .food-card .food-name { font-size:13px; font-weight:600; }
+  .food-card .food-price { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  .order-status {
+    background:linear-gradient(135deg, rgba(244,114,182,0.1), rgba(251,191,36,0.1));
+    border:1px solid rgba(244,114,182,0.25); border-radius:14px; padding:16px;
+    margin-top:14px;
+  }
+  .order-status-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .order-status-title { font-family:var(--font-head); font-weight:700; font-size:15px; }
+  .order-status-badge {
+    padding:3px 10px; border-radius:8px; font-size:11px; font-weight:600;
+    background:rgba(251,191,36,0.2); color:var(--warn);
+  }
+  .order-status-badge.delivered { background:rgba(52,211,153,0.2); color:var(--low); }
+  .order-track { display:flex; align-items:center; gap:10px; margin-top:6px; font-size:13px; color:var(--muted); }
+
+  /* MAP SVG STYLES */
+  .section-circle { transition: fill 0.6s ease, stroke 0.3s ease; cursor:pointer; }
+  .section-circle:hover { stroke:white; stroke-width:2; }
+  .section-label { font-family:var(--font-head); font-weight:700; font-size:9px; fill:#fff; text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
+  .path-edge { stroke:rgba(255,255,255,0.08); stroke-width:1.5; }
+  .route-edge { stroke:var(--accent); stroke-width:3; stroke-linecap:round; filter:drop-shadow(0 0 6px rgba(110,231,183,0.8)); }
+  .user-marker { filter:drop-shadow(0 0 8px rgba(110,231,183,1)); }
+  .friend-marker { filter:drop-shadow(0 0 6px rgba(56,189,248,0.8)); }
+  .vendor-marker { filter:drop-shadow(0 0 6px rgba(251,191,36,0.8)); }
+  .meet-marker { filter:drop-shadow(0 0 10px rgba(244,114,182,1)); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  .loading-spinner {
+    display:inline-block; width:14px; height:14px; border:2px solid rgba(7,11,20,0.3);
+    border-top-color:#070b14; border-radius:50%; animation:spin 0.6s linear infinite;
+    margin-right:6px; vertical-align:middle;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="header">
+    <div class="logo">Neuro<span>Flow</span> X</div>
+    <div class="status-pill"><div class="pulse"></div>LIVE</div>
+  </div>
+
+  <!-- ALERTS -->
+  <div class="alerts-container" id="alerts-container"></div>
+
+  <!-- MAP -->
+  <div class="map-container">
+    <svg class="stadium-svg" viewBox="0 0 100 100" id="stadium-svg" xmlns="http://www.w3.org/2000/svg">
+      <!-- Defs -->
+      <defs>
+        <radialGradient id="bgGrad" cx="50%" cy="50%">
+          <stop offset="0%" stop-color="#0f1a2e"/>
+          <stop offset="100%" stop-color="#070b14"/>
+        </radialGradient>
+        <radialGradient id="fieldGrad" cx="50%" cy="50%">
+          <stop offset="0%" stop-color="#1a4a1a"/>
+          <stop offset="100%" stop-color="#0d2e0d"/>
+        </radialGradient>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="1" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <!-- Field -->
+      <ellipse cx="50" cy="50" rx="14" ry="11" fill="url(#fieldGrad)" stroke="#2a6a2a" stroke-width="0.5"/>
+      <ellipse cx="50" cy="50" rx="8" ry="6" fill="none" stroke="#2a6a2a" stroke-width="0.3"/>
+      <line x1="50" y1="39" x2="50" y2="61" stroke="#2a6a2a" stroke-width="0.3"/>
+      <!-- Edges drawn by JS -->
+      <g id="edges-layer"></g>
+      <g id="route-edges-layer"></g>
+      <!-- Sections drawn by JS -->
+      <g id="sections-layer"></g>
+      <!-- Markers drawn by JS -->
+      <g id="markers-layer"></g>
+    </svg>
+  </div>
+
+  <!-- BOTTOM PANEL -->
+  <div class="bottom-panel">
+    <!-- TABS -->
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('home')" id="tab-home">
+        <span class="icon">🏟️</span><span>Stadium</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('nav')" id="tab-nav">
+        <span class="icon">🧭</span><span>Navigate</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('meet')" id="tab-meet">
+        <span class="icon">👥</span><span>GroupSync</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('food')" id="tab-food">
+        <span class="icon">🍕</span><span>Order</span>
+      </button>
+    </div>
+
+    <!-- HOME TAB -->
+    <div id="panel-home">
+      <div class="section-title">Stadium Overview</div>
+      <div class="legend">
+        <div class="legend-item"><div class="dot" style="background:var(--low)"></div>Low crowd</div>
+        <div class="legend-item"><div class="dot" style="background:var(--med)"></div>Medium</div>
+        <div class="legend-item"><div class="dot" style="background:var(--high)"></div>High crowd</div>
+      </div>
+      <div class="section-title">Friends Nearby</div>
+      <div class="friends-row" id="friends-row"></div>
+      <div class="section-title">Quick Actions</div>
+      <div class="quick-actions">
+        <button class="action-btn" onclick="switchTab('nav')">
+          <span class="ab-icon">🧭</span>
+          <span class="ab-label">Navigate</span>
+          <span class="ab-sub">Find best route</span>
+        </button>
+        <button class="action-btn" onclick="switchTab('meet')">
+          <span class="ab-icon">🤝</span>
+          <span class="ab-label">Meet Friends</span>
+          <span class="ab-sub">Find meeting point</span>
+        </button>
+        <button class="action-btn" onclick="switchTab('food')">
+          <span class="ab-icon">🍕</span>
+          <span class="ab-label">Order Food</span>
+          <span class="ab-sub">To your seat</span>
+        </button>
+        <button class="action-btn" onclick="setRandomLocation()">
+          <span class="ab-icon">📍</span>
+          <span class="ab-label">Move Me</span>
+          <span class="ab-sub">Simulate move</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- NAV TAB -->
+    <div id="panel-nav" style="display:none">
+      <div class="section-title">Smart Navigation</div>
+      <div class="form-row">
+        <div class="select-wrap">
+          <select id="nav-src"><option value="">From (your location)</option></select>
+        </div>
+        <div class="select-wrap">
+          <select id="nav-dst"><option value="">To (destination)</option></select>
+        </div>
+      </div>
+      <button class="primary-btn" onclick="getRoute()" id="route-btn">Find Best Route</button>
+      <div id="route-result" style="display:none" class="route-result">
+        <div class="route-path" id="route-path"></div>
+        <div class="route-meta">
+          <div class="route-meta-item">ETA: <span id="route-eta">—</span> min</div>
+          <div class="route-meta-item">Stops: <span id="route-stops">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEET TAB -->
+    <div id="panel-meet" style="display:none">
+      <div class="section-title">GroupSync</div>
+      <div class="friends-row" id="meet-friends-row"></div>
+      <button class="primary-btn" onclick="getMeet()" id="meet-btn">📍 Find Meeting Point</button>
+      <div id="meet-result" style="display:none" class="meet-result">
+        <div class="meeting-label">Optimal meeting point</div>
+        <div class="meeting-point" id="meet-point">—</div>
+        <div class="meet-routes" id="meet-routes"></div>
+      </div>
+    </div>
+
+    <!-- FOOD TAB -->
+    <div id="panel-food" style="display:none">
+      <div class="section-title">Order to Your Seat</div>
+      <div class="food-grid" id="food-grid"></div>
+      <button class="primary-btn" onclick="placeOrder()" id="order-btn">🛎️ Place Order</button>
+      <div id="order-result" style="display:none" class="order-status">
+        <div class="order-status-header">
+          <div class="order-status-title" id="order-item-title">—</div>
+          <div class="order-status-badge" id="order-badge">On the way</div>
+        </div>
+        <div class="order-track" id="order-track">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────
+// CONFIG
+// ──────────────────────────────────────────────
+const API = "http://localhost:8000";
+const SECTIONS = ["A","B","C","D","E","F","G","H","R","Q","P","N","M","L","K","J"];
+const EDGES = [];
+for(let i=0;i<SECTIONS.length;i++) EDGES.push([SECTIONS[i], SECTIONS[(i+1)%SECTIONS.length]]);
+
+const FOOD_MENU = [
+  {id:"pizza", name:"Pizza Slice", price:"₹120", emoji:"🍕"},
+  {id:"burger", name:"Burger", price:"₹90", emoji:"🍔"},
+  {id:"drink", name:"Cold Drink", price:"₹60", emoji:"🥤"},
+  {id:"nachos", name:"Nachos", price:"₹80", emoji:"🌮"},
+  {id:"icecream", name:"Ice Cream", price:"₹70", emoji:"🍦"},
+  {id:"coffee", name:"Coffee", price:"₹50", emoji:"☕"},
+];
+
+const CROWD_COLORS = {low:"#34d399", medium:"#fbbf24", high:"#f87171"};
+const CROWD_OPACITY = {low:0.6, medium:0.75, high:0.9};
+
+// ──────────────────────────────────────────────
+// STATE
+// ──────────────────────────────────────────────
+let appState = {
+  crowd:{}, user:"C", friends:{}, vendors:{},
+  positions:{}, alerts:[], activeOrder:null,
+  activeTab:"home", selectedFood:null,
+  routePath:[], meetData:null,
+};
+
+// ──────────────────────────────────────────────
+// MATH HELPERS
+// ──────────────────────────────────────────────
+function sectionPos(sec) {
+  const positions = appState.positions;
+  if(positions[sec]) return {x: positions[sec].x, y: positions[sec].y};
+  const n = SECTIONS.length;
+  const i = SECTIONS.indexOf(sec);
+  const angle = (2*Math.PI*i/n) - Math.PI/2;
+  return {x: 50+38*Math.cos(angle), y: 50+38*Math.sin(angle)};
+}
+
+// ──────────────────────────────────────────────
+// SYNC
+// ──────────────────────────────────────────────
+async function syncState() {
+  try {
+    const res = await fetch(`${API}/sync`);
+    const data = await res.json();
+    appState.crowd = data.crowd;
+    appState.user = data.user;
+    appState.friends = data.friends;
+    appState.vendors = data.vendors;
+    appState.positions = data.positions;
+    appState.alerts = data.alerts;
+    appState.activeOrder = data.active_order;
+    renderAll();
+  } catch(e) {
+    // If backend not running, use mock data
+    mockSync();
+  }
+}
+
+function mockSync() {
+  const densities = ["low","low","medium","high"];
+  SECTIONS.forEach(s => {
+    if(!appState.crowd[s]) appState.crowd[s] = densities[Math.floor(Math.random()*densities.length)];
+    else if(Math.random()>0.8) {
+      const cur = appState.crowd[s];
+      const opts = {low:["low","medium"], medium:["low","medium","high"], high:["medium","high"]};
+      const choices = opts[cur];
+      appState.crowd[s] = choices[Math.floor(Math.random()*choices.length)];
+    }
+  });
+  if(!appState.user) appState.user = "C";
+  if(!appState.friends.Alex) appState.friends = {
+    Alex:{section:"F",avatar:"🧑"}, Priya:{section:"N",avatar:"👩"}
+  };
+  if(!appState.vendors.V1) appState.vendors = {
+    V1:{section:"B",name:"Raj Snacks",emoji:"🍕"},
+    V2:{section:"K",name:"Spice Cart",emoji:"🌮"}
+  };
+  // gen positions
+  SECTIONS.forEach((s,i)=>{
+    const angle=(2*Math.PI*i/SECTIONS.length)-Math.PI/2;
+    appState.positions[s]={x:50+38*Math.cos(angle),y:50+38*Math.sin(angle)};
+  });
+  // mock alerts
+  const highSecs = SECTIONS.filter(s=>appState.crowd[s]==="high");
+  appState.alerts = highSecs.length ? [`🚨 High crowd in: ${highSecs.join(", ")}`] : [];
+  renderAll();
+}
+
+// ──────────────────────────────────────────────
+// RENDER
+// ──────────────────────────────────────────────
+function renderAll() {
+  renderMap();
+  renderAlerts();
+  renderFriends();
+  renderFoodGrid();
+  renderOrderStatus();
+  if(appState.activeOrder) updateOrderBadge();
+}
+
+function renderMap() {
+  const edgesLayer = document.getElementById("edges-layer");
+  const routeEdgesLayer = document.getElementById("route-edges-layer");
+  const sectionsLayer = document.getElementById("sections-layer");
+  const markersLayer = document.getElementById("markers-layer");
+
+  // Draw edges
+  edgesLayer.innerHTML = EDGES.map(([a,b])=>{
+    const pa=sectionPos(a), pb=sectionPos(b);
+    return `<line class="path-edge" x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}"/>`;
+  }).join("");
+
+  // Draw route edges
+  const rp = appState.routePath;
+  let routeSVG = "";
+  if(rp.length>1) {
+    for(let i=0;i<rp.length-1;i++) {
+      const pa=sectionPos(rp[i]), pb=sectionPos(rp[i+1]);
+      routeSVG+=`<line class="route-edge" x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}"/>`;
+    }
+  }
+  // Draw meet routes
+  if(appState.meetData) {
+    Object.values(appState.meetData.routes).forEach(route=>{
+      for(let i=0;i<route.length-1;i++) {
+        const pa=sectionPos(route[i]), pb=sectionPos(route[i+1]);
+        routeSVG+=`<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="rgba(56,189,248,0.5)" stroke-width="2" stroke-linecap="round"/>`;
+      }
+    });
+  }
+  routeEdgesLayer.innerHTML = routeSVG;
+
+  // Draw sections
+  sectionsLayer.innerHTML = SECTIONS.map(s=>{
+    const pos = sectionPos(s);
+    const density = appState.crowd[s]||"low";
+    const color = CROWD_COLORS[density];
+    const isUser = s===appState.user;
+    const isMeet = appState.meetData && appState.meetData.meeting_point===s;
+    const isRoute = rp.includes(s);
+    const r = 5.5;
+    let strokeColor = "rgba(255,255,255,0.1)";
+    let strokeW = 0.8;
+    if(isUser){strokeColor="var(--accent)";strokeW=2;}
+    else if(isMeet){strokeColor="var(--accent3)";strokeW=2;}
+    else if(isRoute){strokeColor="var(--accent)";strokeW=1.5;}
+    return `
+      <circle class="section-circle" cx="${pos.x}" cy="${pos.y}" r="${r}"
+        fill="${color}" fill-opacity="${CROWD_OPACITY[density]}"
+        stroke="${strokeColor}" stroke-width="${strokeW}"
+        onclick="onSectionClick('${s}')" data-section="${s}"/>
+      <text class="section-label" x="${pos.x}" y="${pos.y}">${s}</text>`;
+  }).join("");
+
+  // Draw markers
+  let markersSVG = "";
+
+  // User
+  const up = sectionPos(appState.user);
+  markersSVG += `
+    <circle class="user-marker" cx="${up.x}" cy="${up.y}" r="3.5" fill="var(--accent)" opacity="0.3"/>
+    <circle class="user-marker" cx="${up.x}" cy="${up.y}" r="2" fill="var(--accent)"/>
+    <text x="${up.x}" y="${up.y-7}" text-anchor="middle" font-size="4" fill="var(--accent)" font-family="DM Sans" font-weight="600">YOU</text>`;
+
+  // Friends
+  Object.entries(appState.friends).forEach(([name,f])=>{
+    const fp=sectionPos(f.section);
+    markersSVG+=`
+      <circle class="friend-marker" cx="${fp.x}" cy="${fp.y}" r="2.5" fill="var(--accent2)" opacity="0.9"/>
+      <text x="${fp.x}" y="${fp.y-6}" text-anchor="middle" font-size="3.5" fill="var(--accent2)" font-family="DM Sans">${f.avatar}</text>`;
+  });
+
+  // Vendors
+  Object.entries(appState.vendors).forEach(([vid,v])=>{
+    const vp=sectionPos(v.section);
+    markersSVG+=`
+      <circle class="vendor-marker" cx="${vp.x}" cy="${vp.y}" r="2.5" fill="var(--warn)" opacity="0.9"/>
+      <text x="${vp.x}" y="${vp.y-6}" text-anchor="middle" font-size="4">${v.emoji}</text>`;
+  });
+
+  // Meeting point
+  if(appState.meetData) {
+    const mp=sectionPos(appState.meetData.meeting_point);
+    markersSVG+=`
+      <circle class="meet-marker" cx="${mp.x}" cy="${mp.y}" r="4" fill="var(--accent3)" opacity="0.2"/>
+      <circle class="meet-marker" cx="${mp.x}" cy="${mp.y}" r="2.5" fill="var(--accent3)" opacity="0.9"/>
+      <text x="${mp.x}" y="${mp.y-8}" text-anchor="middle" font-size="3.5" fill="var(--accent3)" font-family="Syne" font-weight="700">MEET</text>`;
+  }
+
+  markersLayer.innerHTML = markersSVG;
+}
+
+function renderAlerts() {
+  const el = document.getElementById("alerts-container");
+  if(!appState.alerts||!appState.alerts.length){el.innerHTML="";return;}
+  el.innerHTML = appState.alerts.slice(0,2).map(a=>`<div class="alert-pill">${a}</div>`).join("");
+}
+
+function renderFriends() {
+  ["friends-row","meet-friends-row"].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.innerHTML = Object.entries(appState.friends).map(([name,f])=>
+      `<div class="friend-chip">
+        <div class="friend-avatar" style="background:rgba(56,189,248,0.15)">${f.avatar}</div>
+        <div><div style="font-size:12px;font-weight:600">${name}</div><div style="font-size:11px;color:var(--muted)">Section ${f.section}</div></div>
+      </div>`
+    ).join("");
+  });
+}
+
+function renderFoodGrid() {
+  const el = document.getElementById("food-grid");
+  if(!el) return;
+  el.innerHTML = FOOD_MENU.map(item=>
+    `<div class="food-card ${appState.selectedFood===item.id?'selected':''}" onclick="selectFood('${item.id}')">
+      <div class="food-emoji">${item.emoji}</div>
+      <div class="food-name">${item.name}</div>
+      <div class="food-price">${item.price}</div>
+    </div>`
+  ).join("");
+}
+
+function renderOrderStatus() {
+  const el = document.getElementById("order-result");
+  if(!el) return;
+  if(!appState.activeOrder){el.style.display="none";return;}
+  el.style.display="block";
+  const o = appState.activeOrder;
+  document.getElementById("order-item-title").textContent = o.item;
+  const badge = document.getElementById("order-badge");
+  badge.textContent = o.status==="delivered" ? "✅ Delivered!" : "🛵 On the way";
+  badge.className = "order-status-badge" + (o.status==="delivered"?" delivered":"");
+  document.getElementById("order-track").innerHTML =
+    `${o.vendor_emoji} <strong>${o.vendor_name}</strong> &nbsp;·&nbsp; ETA: <strong>${o.eta} min</strong>`;
+}
+
+function updateOrderBadge() {
+  if(appState.activeOrder) renderOrderStatus();
+}
+
+// ──────────────────────────────────────────────
+// TAB SWITCHING
+// ──────────────────────────────────────────────
+function switchTab(tab) {
+  ["home","nav","meet","food"].forEach(t=>{
+    document.getElementById(`panel-${t}`).style.display = t===tab?"block":"none";
+    document.getElementById(`tab-${t}`).className = `tab-btn${t===tab?" active":""}`;
+  });
+  appState.activeTab = tab;
+  if(tab!=="nav") {appState.routePath=[]; renderMap();}
+  if(tab!=="meet") {appState.meetData=null; renderMap();}
+  if(tab==="nav") populateSelects();
+}
+
+function populateSelects() {
+  ["nav-src","nav-dst"].forEach(id=>{
+    const sel = document.getElementById(id);
+    const isNav = id==="nav-src";
+    sel.innerHTML = `<option value="">${isNav?"From (your location)":"To (destination)"}</option>`;
+    SECTIONS.forEach(s=>{
+      sel.innerHTML+=`<option value="${s}" ${isNav&&s===appState.user?"selected":""}>${s} — ${appState.crowd[s]||"?"} crowd</option>`;
+    });
+  });
+}
+
+// ──────────────────────────────────────────────
+// NAVIGATION
+// ──────────────────────────────────────────────
+async function getRoute() {
+  const src = document.getElementById("nav-src").value || appState.user;
+  const dst = document.getElementById("nav-dst").value;
+  if(!src||!dst||src===dst){alert("Please select different sections");return;}
+  const btn = document.getElementById("route-btn");
+  btn.innerHTML = '<span class="loading-spinner"></span>Calculating...';
+  btn.disabled = true;
+  try {
+    let path, eta;
+    try {
+      const res = await fetch(`${API}/route?src=${src}&dst=${dst}`);
+      const data = await res.json();
+      path = data.path; eta = data.eta;
+    } catch {
+      path = bfsLocal(src,dst); eta = path.length*2;
+    }
+    appState.routePath = path;
+    document.getElementById("route-result").style.display="block";
+    document.getElementById("route-path").innerHTML = path.map(s=>`<span class="route-node">${s}</span>`).join('<span class="route-arrow">→</span>');
+    document.getElementById("route-eta").textContent = eta;
+    document.getElementById("route-stops").textContent = path.length;
+    renderMap();
+  } finally {
+    btn.innerHTML="Find Best Route"; btn.disabled=false;
+  }
+}
+
+// ──────────────────────────────────────────────
+// GROUPSYNC
+// ──────────────────────────────────────────────
+async function getMeet() {
+  const btn = document.getElementById("meet-btn");
+  btn.innerHTML = '<span class="loading-spinner"></span>Finding...';
+  btn.disabled = true;
+  try {
+    let meetData;
+    try {
+      const res = await fetch(`${API}/meet`);
+      meetData = await res.json();
+    } catch {
+      meetData = localMeet();
+    }
+    appState.meetData = meetData;
+    document.getElementById("meet-result").style.display="block";
+    document.getElementById("meet-point").textContent = `Section ${meetData.meeting_point}`;
+    const routesEl = document.getElementById("meet-routes");
+    routesEl.innerHTML = Object.entries(meetData.eta).map(([name,eta])=>
+      `<div class="meet-route-row">
+        <span class="meet-route-name">${name==="You"?"📍 You":appState.friends[name]?.avatar+" "+name}</span>
+        <span class="eta-badge">${eta} min</span>
+      </div>`
+    ).join("");
+    renderMap();
+  } finally {
+    btn.innerHTML="📍 Find Meeting Point"; btn.disabled=false;
+  }
+}
+
+// ──────────────────────────────────────────────
+// FOOD ORDER
+// ──────────────────────────────────────────────
+function selectFood(id) {
+  appState.selectedFood = id;
+  renderFoodGrid();
+}
+
+async function placeOrder() {
+  if(!appState.selectedFood){alert("Please select an item");return;}
+  const item = FOOD_MENU.find(f=>f.id===appState.selectedFood);
+  const btn = document.getElementById("order-btn");
+  btn.innerHTML='<span class="loading-spinner"></span>Placing Order...';
+  btn.disabled=true;
+  try {
+    let order;
+    try {
+      const res = await fetch(`${API}/order`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({item:item.name,section:appState.user})});
+      order = await res.json();
+    } catch {
+      order = {item:item.name,vendor_id:"V1",vendor_name:"Raj Snacks",vendor_emoji:"🍕",eta:8,status:"on_way"};
+    }
+    appState.activeOrder = order;
+    document.getElementById("order-result").style.display="block";
+    renderOrderStatus();
+  } finally {
+    btn.innerHTML="🛎️ Place Order"; btn.disabled=false;
+  }
+}
+
+// ──────────────────────────────────────────────
+// LOCAL ALGORITHMS (fallback)
+// ──────────────────────────────────────────────
+function buildAdjacency() {
+  const adj = {};
+  SECTIONS.forEach(s=>adj[s]=[]);
+  EDGES.forEach(([a,b])=>{adj[a].push(b);adj[b].push(a);});
+  return adj;
+}
+const ADJ = buildAdjacency();
+
+function bfsLocal(start, end) {
+  if(start===end) return [start];
+  const visited = new Set([start]);
+  const queue = [[start,[start]]];
+  while(queue.length) {
+    const [node,path] = queue.shift();
+    for(const nb of ADJ[node]) {
+      if(nb===end) return [...path,nb];
+      if(!visited.has(nb)){visited.add(nb);queue.push([nb,[...path,nb]]);}
+    }
+  }
+  return [start,end];
+}
+
+function localMeet() {
+  const locations = {You:appState.user,...Object.fromEntries(Object.entries(appState.friends).map(([n,f])=>[n,f.section]))};
+  let best=null, bestTotal=Infinity;
+  SECTIONS.forEach(candidate=>{
+    let total=0;
+    Object.values(locations).forEach(loc=>{total+=bfsLocal(loc,candidate).length;});
+    if(total<bestTotal){bestTotal=total;best=candidate;}
+  });
+  const routes={}, eta={};
+  Object.entries(locations).forEach(([name,loc])=>{
+    routes[name]=bfsLocal(loc,best);
+    eta[name]=routes[name].length*2;
+  });
+  return {meeting_point:best, routes, eta};
+}
+
+// ──────────────────────────────────────────────
+// INTERACTIONS
+// ──────────────────────────────────────────────
+function onSectionClick(sec) {
+  if(appState.activeTab==="nav") {
+    const srcEl=document.getElementById("nav-src");
+    const dstEl=document.getElementById("nav-dst");
+    if(!srcEl.value) srcEl.value=sec;
+    else if(!dstEl.value && sec!==srcEl.value) dstEl.value=sec;
+  }
+}
+
+function setRandomLocation() {
+  const neighbors = ADJ[appState.user];
+  const newLoc = neighbors[Math.floor(Math.random()*neighbors.length)];
+  appState.user = newLoc;
+  try { fetch(`${API}/set-location`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({section:newLoc})}); } catch{}
+  renderMap();
+}
+
+// ──────────────────────────────────────────────
+// INIT
+// ──────────────────────────────────────────────
+async function init() {
+  // Init positions first
+  SECTIONS.forEach((s,i)=>{
+    const angle=(2*Math.PI*i/SECTIONS.length)-Math.PI/2;
+    appState.positions[s]={x:50+38*Math.cos(angle),y:50+38*Math.sin(angle)};
+  });
+  appState.friends = {Alex:{section:"F",avatar:"🧑"},Priya:{section:"N",avatar:"👩"}};
+  appState.vendors = {V1:{section:"B",name:"Raj Snacks",emoji:"🍕"},V2:{section:"K",name:"Spice Cart",emoji:"🌮"}};
+  SECTIONS.forEach(s=>appState.crowd[s]=["low","low","medium","high"][Math.floor(Math.random()*4)]);
+  renderAll();
+
+  // Try backend, fallback to mock
+  await syncState();
+  setInterval(syncState, 4000);
+}
+
+init();
+</script>
+</body>
+</html>
